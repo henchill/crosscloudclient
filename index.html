@@ -1,0 +1,45 @@
+<html>
+	<head>
+		<title>Testing JSClient for Crosscloud</title>
+		<script type="text/javascript" src="js/rdflib.js"></script>
+		<script type="text/javascript" src="js/jquery.min.js"></script>
+		<script type="text/javascript" src="js/shapefactory.js"></script>
+		<script type="text/javascript" src="js/crosscloudclient.js"></script>
+	</head>	
+	<body>
+		<h1 align="center">Testing JSClient for Crosscloud</h1>
+		<!--<script>
+			// var client = CrossCloudClient();
+			// var webid = "https://henchill.rww.io/profile/card#me"
+
+			// var callback = function(obj) {
+			// 	console.log(obj);
+			// };
+
+			// client.getUserCard(webid, User(), callback);
+		</script>
+		<script>
+			// var client = CrossCloudClient();
+			// var uri = "https://henchill.rww.io/storage/"
+			// var callback = function (obj) {
+			// 	for (var i in obj) {
+			// 		console.log(obj[i]);
+			// 	}
+			// };
+			// // console.log(Channel());
+			// client.getContainers(uri, Channel(), callback);
+		</script>-->
+		<script>
+			var uri = "https://henchill.rww.io/storage/myfirstblog/ch12/";
+			var client = CrossCloudClient();
+			var callback = function (obj) {
+				// console.log(obj);
+				for (var i in obj) {
+					console.log(obj[i]);
+				}
+			};
+
+			client.getResource(uri, Post(), callback);
+		</script>
+	</body>
+</html>
