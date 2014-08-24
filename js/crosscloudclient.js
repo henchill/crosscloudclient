@@ -240,6 +240,65 @@ var CrossCloudClient = function () {
 		});
 	}
 
+	self.deleteResource = function(uri, callback) {
+		$.ajax({
+			url: uri,
+			type: "delete",
+			xhrFields: {
+				withCredentials: true
+			},
+			success: function (d, s, r) {
+				var acl = parseLinkHeader(r.getResponseHeader('Link'));
+				var aclUri = acl['acl']['href'];
+
+				$.ajax({
+					url: aclUri,
+					type: "delete",
+					xhrFields: {
+						withCredentials: true
+					},
+					success: function (d, s, r) {
+						callback();
+					}
+				})
+			}
+		})
+	}
+
+	// self.deleteContainer = function(uri, callback) {
+	// 	var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+ //        var rdfschema = $rdf.Namespace("http://www.w3.org/2000/01/rdf-schema#");
+
+ //        var g = $rdf.graph();
+ //        var f = $rdf.fetcher(g, TIMEOUT);
+
+ //        f.nowOrWhenFetched(uri, undefined, function() {
+ //        	var resources = g.statementsMatching(undefined, RDF('type'), rdfschema('Resource'));
+ //        	var length = resources.length;
+ //        	if (resources.length > 0) {
+ //        		for (var r in resources) {
+ //        			var resourceUri = resources[r]['subject']['value'];
+ //        			$.ajax({
+ //        				url: resourceUri,
+ //        				type: 'delete',
+ //        				xhrFields: {
+ //        					withCredentials: true
+ //        				},
+ //        				// include status code behavior
+ //        				success: function (d, s, r) {
+ //        					length -= 1;
+ //        					if (length === 0) {
+ //        						callback();
+ //        					}
+ //        				}
+ //        			})
+ //        		}
+        		
+ //        	}
+ //        })
+	// }
+
+
 	var recursiveAddToGraph = function(g, reference, shape) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 		g.add($rdf.sym(reference), RDF('type'), shape.vocab);
@@ -257,7 +316,7 @@ var CrossCloudClient = function () {
 			}
 		}
 	}
-	
+
 	// get the base name of a path (e.g. filename)
 	// basename('/root/dir1/file') -> 'file'
 	var basename = function(path) {
@@ -283,7 +342,6 @@ var CrossCloudClient = function () {
 			var link = {};
 			link.href = href;
 			var s = ps.match(paramexp);
-			// console.log(link.href); //debug
 			for (j = 0; j < s.length; j++) {
 				var p = s[j];
 				var paramsplit = p.split('=');
@@ -294,8 +352,7 @@ var CrossCloudClient = function () {
 			if (link.rel !== undefined) {
 				rels[link.rel] = link;
 			}
-		}   
-	    
+		}
 	    return rels;
 	}
 

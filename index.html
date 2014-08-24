@@ -64,32 +64,39 @@
 			var LDPX = $rdf.Namespace("http://ns.rww.io/ldpx#");
 			
 			
-			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch54/";
+			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch53/";
 
-			client.getUserCard("https://henchill.rww.io/profile/card#me", UserAccount(), function(results) {
-					var u = results[0];
-					var user = User();
-					user.properties.webid.value = u.webid;
-					for (var val in u.properties) {
-						if (user.properties[val]) {
-							user.properties[val].value = u.properties[val].value;
-						}
-					}
-					var channel = Channel({'title': 'JSClientTitle', 'owner': user});
-					var post = Post({'body': 'client body for post', 'owner': user});
-					
-					client.writeContainer(space, channel, function(params) {
-						console.log(params);
-						client.setAcl(params.containerUri);
-						client.writeResource(params.containerUri, post, function(results) {
-							console.log(results);
-						});
-					});
+			var posturi = "https://henchill.rww.io/storage/myfirstblog/ch54/resource_1";
 
-					client.writeResource(containerUri, post, function(results) {
-						console.log(results);
-					});
+			// client.setAcl(posturi);
+			client.deleteResource(posturi, function() {
+				console.log("delete was successful");
 			});
+
+			// client.getUserCard("https://henchill.rww.io/profile/card#me", UserAccount(), function(results) {
+			// 		var u = results[0];
+			// 		var user = User();
+			// 		user.properties.webid.value = u.webid;
+			// 		for (var val in u.properties) {
+			// 			if (user.properties[val]) {
+			// 				user.properties[val].value = u.properties[val].value;
+			// 			}
+			// 		}
+			// 		var channel = Channel({'title': 'JSClientTitle', 'owner': user});
+			// 		var post = Post({'body': 'client body for post', 'owner': user});
+					
+			// 		// client.writeContainer(space, channel, function(params) {
+			// 		// 	console.log(params);
+			// 		// 	client.setAcl(params.containerUri);
+			// 		// 	client.writeResource(params.containerUri, post, function(results) {
+			// 		// 		console.log(results);
+			// 		// 	});
+			// 		// });
+
+			// 		// client.writeResource(containerUri, post, function(results) {
+			// 		// 	console.log(results);
+			// 		// });
+			// });
 				
 			
 
