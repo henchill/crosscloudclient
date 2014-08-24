@@ -6,99 +6,143 @@ var DCT = $rdf.Namespace("http://purl.org/dc/terms/");
 var SIOC = $rdf.Namespace("http://rdfs.org/sioc/ns#");
 
 var createObject = function (o) {
-	var F = function () {}
-	F.prototype = o;
-	return new F();
+	var Shape = function () {}
+	Shape.prototype = o;
+	return new Shape();
+}
+
+var UserAccount = function() {
+	var self = createObject(UserAccount.prototype);
+
+	self.webid = undefined;
+
+	self.properties =  {
+		'name': {
+			'vocab': FOAF('name'),
+			'value': undefined
+		},
+
+		'pic': {
+			'vocab': FOAF('img'),
+			'value': undefined
+		},
+
+		'depic': {
+			'vocab': FOAF('depiction'),
+			'value': undefined
+		},
+
+		'storage': {
+			'vocab': SPACE('storage'),
+			'value': undefined
+		}
+	}
+	Object.seal(self);
+	return self;
 }
 
 var User = function() {
 	var self = createObject(User.prototype);
 
-	self.name = {
-		'identifier': 'name',
-		'vocab': FOAF('name'),
-		'default': "Unknown"
-	};
+	self.vocab = SIOC('UserAccount');
 
-	self.webid = {
-		'vocab': SIOC('account_of'),
-		'default': "Unknown"
+	self.properties = {
+		'name': {
+			'vocab': FOAF('name'),
+			'value': undefined,
+			'value_type': $rdf.lit
+		},
+
+		'webid': {
+			'vocab': SIOC('account_of'),
+			'value': undefined,
+			'value_type': $rdf.sym
+		},
+
+		'pic': {
+			'vocab': SIOC('avatar'),
+			'value': undefined,
+			'value_type': $rdf.sym
+		}
 	}
-
-	self.pic = {
-		'identifier': "pic",
-		'vocab': SIOC('avatar'),
-		'default': "Unknown"
-	};
-
-	self.depic = {
-		'identifier': 'depic',
-		'vocab': FOAF('depiction'),
-		'default': "Unknown"
-	};
-
-	self.storage = {
-		'identifier': 'storage',
-		'vocab': SPACE('storage'),
-		'default': "Unknown"
-	};
-	Object.freeze(self);
+	
+	Object.seal(self);
 	return self;
 }
 
-var Channel = function () {
+var Channel = function (params) {
 	// console.log("channel create");
 	var self = createObject(Channel.prototype);
 
-	self.uri = {
-		'vocab': undefined,
-		'default': "Unknown"
+	self.uri = undefined;
+
+	self.vocab = SIOC('Container');
+
+	self.prefix = {
+		'vocab': LDPX('ldprPrefix'),
+		'value': $rdf.lit('post')
+	}
+
+	self.properties = {
+		'title': {
+			'vocab': DCT('title'),
+			'value': undefined,
+			'value_type': $rdf.lit
+		},
+
+		'owner': {
+			'vocab': SIOC('has_creator'),
+			'value': User(),
+			'reference': "author"
+		}
 	};
 
-	self.title = {
-		'vocab': DCT('title'),
-		'default': 'Unknown'
-	};
+	if (params) {
+		for (var attr in params) {
+			self.properties[attr]['value'] = params[attr];
+		}
+	} 
 
-	self.owner = {
-		'vocab': SIOC('has_creator'),
-		'shape': User(),
-		'default': {}
-	};
-
-	Object.freeze(self);
-	// console.log(self);
+	Object.seal(self);
 	return self;
 }
 
-var Post = function () {
-	var self = createObject(Post.prototype); 
+var Post = function (params) {
+	var self = createObject(Post.prototype);
 
-	self.vocab = SIOC('Post');
-
-	self.uri = {
-		'vocab': undefined,
-		'default': "Unknown"
-	};
+	self.uri = undefined;
 
 	self.containerUri = undefined;
 
-	self.date = {
-		'vocab': DCT('created'),
-		'default': "Unknown"
-	};
+	self.vocab = SIOC('Post');
 
-	self.owner = {
-		'vocab': SIOC('has_creator'),
-		'shape': User(),
-		'default': {}
-	};
+	self.properties = {
+		'date': {
+			'vocab': DCT('created'),
+			'value': $rdf.lit(Date.now(), '', $rdf.Symbol.prototype.XSDdateTime),
+			'value_type': $rdf.lit
+		},
 
-	self.body = {
-		'vocab': SIOC('content'),
-		'default': ""
-	};
+		'owner': {
+			'vocab': SIOC('has_creator'),
+			'value': User(),
+			'reference': "author"
+		},
 
-	Object.freeze(self);
+		'body': {
+			'vocab': SIOC('content'),
+			'value': undefined,
+			'value_type': $rdf.lit
+		}
+
+	}
+
+	if (params) {
+		for (var attr in params) {
+			self.properties[attr]['value'] = params[attr];
+		}
+	} 
+	
+	Object.seal(self);
 	return self;
 }

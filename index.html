@@ -9,14 +9,31 @@
 	<body>
 		<h1 align="center">Testing JSClient for Crosscloud</h1>
 		<!--<script>
-			// var client = CrossCloudClient();
-			// var webid = "https://henchill.rww.io/profile/card#me"
+			var client = CrossCloudClient();
+			var webid = "https://henchill.rww.io/profile/card#me"
 
-			// var callback = function(obj) {
-			// 	console.log(obj);
-			// };
+			var callback = function(obj) {
+				var user = obj[0];
+				console.log(user);
+				var storage = user.properties.storage;
+				var channel = Channel();
+				// channel.properties.owner.value = User();
+				console.log(channel);
+				client.getContainers(storage, channel, function(results) {
+					for (var i in results) {
+						console.log(results[i]);
+					}
+					var chUri = results[1].uri;
+					console.log(chUri);
+					client.getResource(chUri, Post(), function(results) {
+						for (var j in results) {
+							console.log(results[j]);
+						}
+					});
+				});
+			};
 
-			// client.getUserCard(webid, User(), callback);
+			client.getUserCard(webid, User(), callback);
 		</script>
 		<script>
 			// var client = CrossCloudClient();
@@ -28,18 +45,64 @@
 			// };
 			// // console.log(Channel());
 			// client.getContainers(uri, Channel(), callback);
+		</script>
+		<script>
+			// var uri = "https://henchill.rww.io/storage/myfirstblog/ch12/";
+			// var client = CrossCloudClient();
+			// var callback = function (obj) {
+			// 	// console.log(obj);
+			// 	for (var i in obj) {
+			// 		console.log(obj[i]);
+			// 	}
+			// };
+
+			// client.getResource(uri, Post(), callback);
 		</script>-->
 		<script>
-			var uri = "https://henchill.rww.io/storage/myfirstblog/ch12/";
 			var client = CrossCloudClient();
-			var callback = function (obj) {
-				// console.log(obj);
-				for (var i in obj) {
-					console.log(obj[i]);
-				}
-			};
+			var space = 'https://henchill.rww.io/storage/myfirstblog/';
+			var LDPX = $rdf.Namespace("http://ns.rww.io/ldpx#");
+			
+			
+			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch54/";
 
-			client.getResource(uri, Post(), callback);
+			client.getUserCard("https://henchill.rww.io/profile/card#me", UserAccount(), function(results) {
+					var u = results[0];
+					var user = User();
+					user.properties.webid.value = u.webid;
+					for (var val in u.properties) {
+						if (user.properties[val]) {
+							user.properties[val].value = u.properties[val].value;
+						}
+					}
+					var channel = Channel({'title': 'JSClientTitle', 'owner': user});
+					var post = Post({'body': 'client body for post', 'owner': user});
+					
+					client.writeContainer(space, channel, function(params) {
+						console.log(params);
+						client.setAcl(params.containerUri);
+						client.writeResource(params.containerUri, post, function(results) {
+							console.log(results);
+						});
+					});
+
+					client.writeResource(containerUri, post, function(results) {
+						console.log(results);
+					});
+			});
+				
+			
+
+			// console.log(channel);
+			// client.writeContainer(channel, space, function (params) {
+			// 	console.log(params);
+			// 	client.setAcl(params.containerUri);
+			// 	var user;
+
+
+				
+			// });
 		</script>
+
 	</body>
 </html>
