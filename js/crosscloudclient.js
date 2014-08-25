@@ -275,7 +275,6 @@ var CrossCloudClient = function () {
         f.nowOrWhenFetched(uri, undefined, function() {
         	var resources = g.statementsMatching(undefined, RDF('type'), rdfschema('Resource'));
         	var length = resources.length;
-        	console.log("initial length: " + length);
         	if (resources.length > 0) {
         		for (var r in resources) {
         			var resourceUri = resources[r]['subject']['value'];
@@ -288,52 +287,31 @@ var CrossCloudClient = function () {
         				success: function (d, s, r) {
         					length -= 1;
         					if (length === 0) {
-	        					console.log("deleted all items");
-	        					// delete container
-	        					$.ajax({
-	        						url: uri, 
-	        						type: 'delete',
-	        						xhrFields: {
-	        							withCredentials: true
-	        						},
-	        						// TODO: status code behavior
-	        						success: function (d, s, r) {
-	        							var meta = parseLinkHeader(r.getResponseHeader('Link'));
-	        							console.log(meta);
-	        							var aclUri = meta['acl']['href'];
-	        							// var metaUri = meta['meta']['href'];
-
-	        							var complete = false;
-
-	        							$.ajax({
-	        								url: aclUri,
-	        								type: 'delete',
-	        								xhrFields: {
-	        									withCredentials: true
-	        								},
-	        								success: function(d, s, r) {
-	        			        				complete ? callback(): complete = !complete;
-	        								}
-	        							});
-
-	        							// $.ajax({
-	        							// 	url: metaUri,
-	        							// 	type: 'delete',
-	        							// 	xhrFields: {
-	        							// 		withCredentials: true
-	        							// 	},
-	        							// 	success: function(d, s, r) {
-	        			    //     				complete ? callback(): complete = !complete;
-	        							// 	}
-	        							// });
-	        						}
-	        					});
+	        					deleteEmptyContainer(uri, callback);
 							}
         				}
         			});
         		}
         	} else {
-        		$.ajax({
+        		deleteEmptyContainer(uri, callback);
+        	}
+        });
+	}
+
+	var deleteEmptyContainer = function (uri, callback) {
+		$.ajax({
+			url: uri,
+			type: 'get',
+			xhrFields: {
+				withCredentials: true
+			},
+			success: function (d, s, r) {
+				var meta = parseLinkHeader(r.getResponseHeader('Link'));
+				var aclUri = meta['acl']['href'];
+				var metaUri = meta['meta']['href'];
+
+				// delete container
+				$.ajax({
 					url: uri, 
 					type: 'delete',
 					xhrFields: {
@@ -341,11 +319,7 @@ var CrossCloudClient = function () {
 					},
 					// TODO: status code behavior
 					success: function (d, s, r) {
-						var meta = parseLinkHeader(r.getResponseHeader('Link'));
-						console.log(meta);
-						var aclUri = meta['acl']['href'];
-						// var metaUri = meta['meta']['href'];
-
+						
 						var complete = false;
 
 						$.ajax({
@@ -359,22 +333,21 @@ var CrossCloudClient = function () {
 							}
 						});
 
-						// $.ajax({
-						// 	url: metaUri,
-						// 	type: 'delete',
-						// 	xhrFields: {
-						// 		withCredentials: true
-						// 	},
-						// 	success: function(d, s, r) {
-		    //     				complete ? callback(): complete = !complete;
-						// 	}
-						// });
+						$.ajax({
+							url: metaUri,
+							type: 'delete',
+							xhrFields: {
+								withCredentials: true
+							},
+							success: function(d, s, r) {
+		        				complete ? callback(): complete = !complete;
+							}
+						});
 					}
 				});
-        	}
-        });
+			}
+		});
 	}
-
 
 	var recursiveAddToGraph = function(g, reference, shape) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
@@ -432,7 +405,6 @@ var CrossCloudClient = function () {
 		}
 	    return rels;
 	}
-
 
 	var unquote = function(value) {
 	    if (value.charAt(0) == '"' && value.charAt(value.length - 1) == '"') {
