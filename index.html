@@ -64,14 +64,19 @@
 			var LDPX = $rdf.Namespace("http://ns.rww.io/ldpx#");
 			
 			
-			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch53/";
+			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch51/";
 
-			var posturi = "https://henchill.rww.io/storage/myfirstblog/ch54/resource_1";
+			var posturi = "https://henchill.rww.io/storage/myfirstblog/ch55/resource_1";
 
 			// client.setAcl(posturi);
-			client.deleteResource(posturi, function() {
-				console.log("delete was successful");
+			// client.deleteResource(posturi, function() {
+			// 	console.log("delete was successful");
+			// });
+			
+			client.deleteContainer(containerUri, function() {
+				console.log("container delete successful");
 			});
+			
 
 			// client.getUserCard("https://henchill.rww.io/profile/card#me", UserAccount(), function(results) {
 			// 		var u = results[0];
@@ -93,9 +98,10 @@
 			// 		// 	});
 			// 		// });
 
-			// 		// client.writeResource(containerUri, post, function(results) {
-			// 		// 	console.log(results);
-			// 		// });
+			// 		client.writeResource(containerUri, post, function(results) {
+			// 			client.setAcl(results.resourceUri);
+			// 			console.log(results);
+			// 		});
 			// });
 				
 			

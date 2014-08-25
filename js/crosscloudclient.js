@@ -265,38 +265,115 @@ var CrossCloudClient = function () {
 		})
 	}
 
-	// self.deleteContainer = function(uri, callback) {
-	// 	var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
- //        var rdfschema = $rdf.Namespace("http://www.w3.org/2000/01/rdf-schema#");
+	self.deleteContainer = function(uri, callback) {
+		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+        var rdfschema = $rdf.Namespace("http://www.w3.org/2000/01/rdf-schema#");
 
- //        var g = $rdf.graph();
- //        var f = $rdf.fetcher(g, TIMEOUT);
+        var g = $rdf.graph();
+        var f = $rdf.fetcher(g, TIMEOUT);
 
- //        f.nowOrWhenFetched(uri, undefined, function() {
- //        	var resources = g.statementsMatching(undefined, RDF('type'), rdfschema('Resource'));
- //        	var length = resources.length;
- //        	if (resources.length > 0) {
- //        		for (var r in resources) {
- //        			var resourceUri = resources[r]['subject']['value'];
- //        			$.ajax({
- //        				url: resourceUri,
- //        				type: 'delete',
- //        				xhrFields: {
- //        					withCredentials: true
- //        				},
- //        				// include status code behavior
- //        				success: function (d, s, r) {
- //        					length -= 1;
- //        					if (length === 0) {
- //        						callback();
- //        					}
- //        				}
- //        			})
- //        		}
-        		
- //        	}
- //        })
-	// }
+        f.nowOrWhenFetched(uri, undefined, function() {
+        	var resources = g.statementsMatching(undefined, RDF('type'), rdfschema('Resource'));
+        	var length = resources.length;
+        	console.log("initial length: " + length);
+        	if (resources.length > 0) {
+        		for (var r in resources) {
+        			var resourceUri = resources[r]['subject']['value'];
+        			$.ajax({
+        				url: resourceUri,
+        				type: 'delete',
+        				xhrFields: {
+        					withCredentials: true
+        				},
+        				success: function (d, s, r) {
+        					length -= 1;
+        					if (length === 0) {
+	        					console.log("deleted all items");
+	        					// delete container
+	        					$.ajax({
+	        						url: uri, 
+	        						type: 'delete',
+	        						xhrFields: {
+	        							withCredentials: true
+	        						},
+	        						// TODO: status code behavior
+	        						success: function (d, s, r) {
+	        							var meta = parseLinkHeader(r.getResponseHeader('Link'));
+	        							console.log(meta);
+	        							var aclUri = meta['acl']['href'];
+	        							// var metaUri = meta['meta']['href'];
+
+	        							var complete = false;
+
+	        							$.ajax({
+	        								url: aclUri,
+	        								type: 'delete',
+	        								xhrFields: {
+	        									withCredentials: true
+	        								},
+	        								success: function(d, s, r) {
+	        			        				complete ? callback(): complete = !complete;
+	        								}
+	        							});
+
+	        							// $.ajax({
+	        							// 	url: metaUri,
+	        							// 	type: 'delete',
+	        							// 	xhrFields: {
+	        							// 		withCredentials: true
+	        							// 	},
+	        							// 	success: function(d, s, r) {
+	        			    //     				complete ? callback(): complete = !complete;
+	        							// 	}
+	        							// });
+	        						}
+	        					});
+							}
+        				}
+        			});
+        		}
+        	} else {
+        		$.ajax({
+					url: uri, 
+					type: 'delete',
+					xhrFields: {
+						withCredentials: true
+					},
+					// TODO: status code behavior
+					success: function (d, s, r) {
+						var meta = parseLinkHeader(r.getResponseHeader('Link'));
+						console.log(meta);
+						var aclUri = meta['acl']['href'];
+						// var metaUri = meta['meta']['href'];
+
+						var complete = false;
+
+						$.ajax({
+							url: aclUri,
+							type: 'delete',
+							xhrFields: {
+								withCredentials: true
+							},
+							success: function(d, s, r) {
+		        				complete ? callback(): complete = !complete;
+							}
+						});
+
+						// $.ajax({
+						// 	url: metaUri,
+						// 	type: 'delete',
+						// 	xhrFields: {
+						// 		withCredentials: true
+						// 	},
+						// 	success: function(d, s, r) {
+		    //     				complete ? callback(): complete = !complete;
+						// 	}
+						// });
+					}
+				});
+        	}
+        });
+	}
 
 
 	var recursiveAddToGraph = function(g, reference, shape) {
