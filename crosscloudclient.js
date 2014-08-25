@@ -1,24 +1,68 @@
+/**
+* This is the CrossCloud Client for acessing user pods. This client leverages rdflib.js
+* to make it easier for developers to write CrossCloud Applications.
+* 
+* Author: Happy Enchill
+*
+*/
+
+
+
 var PROXY = "https://data.fm/proxy?uri={uri}";
 var AUTH_PROXY = "https://rww.io/auth-proxy?uri=";
 var TIMEOUT = 90000;
 
+// same as Object.create in ECMAScript 5
+// return a fresh object whose prototype is o
 var createObject = function (o) {
 	var F = function () {}
 	F.prototype = o;
 	return new F();
 }
 
-var CrossCloudClient = function () {
-	var self = createObject(CrossCloudClient.prototype);
-    var g = $rdf.graph();
-    var f = $rdf.fetcher(g, TIMEOUT);
-    // add CORS proxy
-    $rdf.Fetcher.crossSiteProxyTemplate=PROXY;
+/**
+* Client that allows you to read/write to user pods and set ACL.
+* 
+* Notes about the callback function: The first parameter of the callback function
+* is a boolean noting whether the process was successful or not, and the second 
+* parameter is an object -->
+*	{errorType: "type of error that occured",
+*	 message: "error message"}
+* 
+* @params {String} proxy A cross site proxy template.
+*
+*/
+var CrossCloudClient = function (proxy, timeout) {
+	// for debuging
+	if (!proxy) {
+		var proxy = PROXY;
+	}
+	if (!timeout) {
+		var timeout = TIMEOUT;
+	}
 
+	// alternative to self
+	// var tmp = Object.create(CrossCloudClient.prototype);
+	// var self = new tmp();
+	var self = createObject(CrossCloudClient.prototype);
+
+    // add CORS proxy
+    $rdf.Fetcher.crossSiteProxyTemplate = proxy;
+
+    /**
+    * Retrieves information about the user at the given webid. 
+    * 
+    * @params {String} webid The webid of the user we are fetching
+    * @params {Object} shape Object describing the properties we expect the user to have
+    * @params {Function} callback Function to execute after fetch is complete
+    */
 	self.getUserCard = function (webid, shape, callback) {
+		var g = $rdf.graph();
+    	var f = $rdf.fetcher(g, timeout);
+
 		var docURI = webid.slice(0, webid.indexOf('#'));
         var webidRes = $rdf.sym(webid);
-        var results = [];
+    
         f.nowOrWhenFetched(docURI, undefined, function (ok, body) {
         	if (ok) {
 				var userObj = jQuery.extend(true, {}, shape);
@@ -28,53 +72,66 @@ var CrossCloudClient = function () {
 					var tmp = g.any(webidRes, curr.vocab);
 					if (tmp) userObj.properties[val].value = tmp.value;
 				}
-				results.push(userObj);
-				callback(results);
+				callback(true, userObj);
 			} else {
-				callback([], body);
+				// TODO build error message
+				callback(false, body);
 			}
 		});
 	}
 
+	/**
+	* Retrieves all containers located at the given uri that fit the type of shape provided
+	* 
+	* @params {String} uri The URI of the container
+	* @params {Object} shape Object describing the properties the container should have
+	* @params {Function} callback Function to execute when fetch is complete
+	* @return {Array[shape]} Returns a list of containers found
+	*/
 	self.getContainers = function (uri, shape, callback) {
 		f.nowOrWhenFetched(uri, undefined, function (ok, body) {
-			var workspaces = g.statementsMatching(undefined, RDF('type'), SIOC('Space'));
-			var results = [];
-			for (var i in workspaces) {
-				var workspace = workspaces[i]['subject']['value'];
-				f.nowOrWhenFetched(workspace+".*", undefined, function (ok, body) {
-					var containers = g.statementsMatching(undefined, RDF('type'), shape.vocab);
-					for (var container in containers) {
-						var contObj = containers[container]['subject'];
-						var currShape = jQuery.extend(true, {}, shape);
-						currShape.uri = contObj.value;
+			if (ok) {
+				var workspaces = g.statementsMatching(undefined, RDF('type'), SIOC('Space'));
+				var results = [];
+				for (var i in workspaces) {
+					var workspace = workspaces[i]['subject']['value'];
+					f.nowOrWhenFetched(workspace+".*", undefined, function (ok, body) {
+						var containers = g.statementsMatching(undefined, RDF('type'), shape.vocab);
+						for (var container in containers) {
+							var contObj = containers[container]['subject'];
+							var currShape = jQuery.extend(true, {}, shape);
+							currShape.uri = contObj.value;
 
-						for (var p in shape.properties) {
-							var attr = shape.properties[p];
-							if (attr.value instanceof Object) {
-								// fetch sub object
-								var tmp = g.any(contObj, attr.vocab);
-								var subObj = jQuery.extend(true, {}, attr.value);
-								currShape.properties[p].value = subObj;
-								for (var s in attr.value.properties) {
-									var attr2 = attr.value.properties[s];
-									var tmp2 = g.any(tmp, attr2.vocab);
-									if (tmp2) subObj.properties[s].value = tmp2.value;
+							for (var p in shape.properties) {
+								var attr = shape.properties[p];
+								if (attr.value instanceof Object) {
+									// fetch sub object
+									var tmp = g.any(contObj, attr.vocab);
+									var subObj = jQuery.extend(true, {}, attr.value);
+									currShape.properties[p].value = subObj;
+									for (var s in attr.value.properties) {
+										var attr2 = attr.value.properties[s];
+										var tmp2 = g.any(tmp, attr2.vocab);
+										if (tmp2) subObj.properties[s].value = tmp2.value;
+									}
+								} else {
+									var tmp = g.any(contObj, attr.vocab);
+									if (tmp) currShape.properties[p].value = tmp.value;
 								}
-							} else {
-								var tmp = g.any(contObj, attr.vocab);
-								if (tmp) currShape.properties[p].value = tmp.value;
 							}
+							results.push(currShape);
 						}
-						results.push(currShape);
-					}
-					callback(results);
-				});
-			}			
+						callback(true, results);
+					});
+				}
+			} else {
+				// TODO build error message
+				callback(false, body);
+			}
 		});
 	}
 
-	// TODO: consider writing a recursive function for sub objects.
+
 	self.getResource = function (uri, shape, callback) {
 		f.nowOrWhenFetched(uri+"*", undefined, function(ok, body) {
 			var results = [];
@@ -438,42 +495,4 @@ var CrossCloudClient = function () {
 
 	Object.freeze(self);
 	return self;
-}
-
-/*
-	@params: modes - list of 
-*/
-var ACLMode = function(mode) {
-
-}
-
-var ACL = function (mode, group) {
-	var self = createObject(CrossCloudClient.prototype);
-	var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
-	var WAC = $rdf.Namespace("http://www.w3.org/ns/auth/acl#");
-    var FOAF = $rdf.Namespace("http://xmlns.com/foaf/0.1/");
-
-	var aclMode;
-	var aclGroup;
-
-	self.setMode = function (mode) {
-		if (mode.toLowerCase() === 'read') {
-			aclMode = WAC('Read');
-			return true;
-		} else if (mode.toLowerCase() === 'write') {
-			aclMode = WAC('Write');
-			return true;
-		} else {
-			aclMode = undefined;
-			return false;
-		}
-	}
-
-	self.setGroup = function (group) {
-		if (group instanceof Array) {
-			if (isEmpty(group)) {
-
-			}
-		}
-	}
 }
