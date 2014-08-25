@@ -182,8 +182,12 @@ var CrossCloudClient = function () {
 	}
 
 	// currently only sets public and private access. 
-	self.setAcl = function (uri) {
+	// server doesn't accept agentClass groups. 
+	// How should we set the acl for the acl file itself.
+	self.setAcl = function (uri, owner, modes, group) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+		var WAC = $rdf.Namespace("http://www.w3.org/ns/auth/acl#");
+        var FOAF = $rdf.Namespace("http://xmlns.com/foaf/0.1/");
         var g = $rdf.graph();
         var s = new $rdf.Serializer(g).toN3(g);
 
@@ -196,30 +200,44 @@ var CrossCloudClient = function () {
 			success: function(d, s, r) {
 				var acl = parseLinkHeader(r.getResponseHeader('Link'));
 				var aclUri = acl['acl']['href'];
+				var metaUri = acl['meta'] ? acl['meta']['href'] : undefined;
 
 				var frag = "#" + basename(uri);
 
-				var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
-                var WAC = $rdf.Namespace("http://www.w3.org/ns/auth/acl#");
-                var FOAF = $rdf.Namespace("http://xmlns.com/foaf/0.1/");
-
                 var webid = "https://henchill.rww.io/profile/card#me";
                 var g = $rdf.graph();
-                // add document triples
+
+                // default is read write for owner
                 g.add($rdf.sym(''), RDF('type'), WAC('Authorization'));
                 g.add($rdf.sym(''), WAC('accessTo'), $rdf.sym(''));
                 g.add($rdf.sym(''), WAC('accessTo'), $rdf.sym(uri));
-                g.add($rdf.sym(''), WAC('agent'), $rdf.sym(webid));
+
+                if (metaUri) g.add($rdf.sym(''), WAC('accessTo'), $rdf.sym(metaUri));
+
+                g.add($rdf.sym(''), WAC('agent'), $rdf.sym(owner));
                 g.add($rdf.sym(''), WAC('mode'), WAC('Read'));
                 g.add($rdf.sym(''), WAC('mode'), WAC('Write'));
 
-                // add post triples
-                g.add($rdf.sym(frag), RDF('type'), WAC('Authorization'));
-                g.add($rdf.sym(frag), WAC('accessTo'), $rdf.sym(uri));
+                if (modes) { // specify other acccess control
+	                // add post triples
+	                g.add($rdf.sym(frag), RDF('type'), WAC('Authorization'));
+	                g.add($rdf.sym(frag), WAC('accessTo'), $rdf.sym(uri));
 
-                // public visibility
-                g.add($rdf.sym(frag), WAC('agentClass'), FOAF('Agent'));
-                g.add($rdf.sym(frag), WAC('mode'), WAC('Read'));
+					// add group
+	                if (group) {
+	                	for (var j in group) {
+	                		g.add($rdf.sym(frag), WAC('agent'), $rdf.sym(group[j]));
+	                	}
+	                } else { // if no group specified then make resource public
+	                	g.add($rdf.sym(frag), WAC('agentClass'), FOAF('Agent'));
+	                }
+
+	                // add modes
+	                for (var i in modes) {
+	                	g.add($rdf.sym(frag), WAC('mode'), WAC(firstLetterUpperCase(modes[i])));
+	                }
+	            }
+                
                 
                 s = new $rdf.Serializer(g).toN3(g);
 
@@ -301,7 +319,7 @@ var CrossCloudClient = function () {
 	var deleteEmptyContainer = function (uri, callback) {
 		$.ajax({
 			url: uri,
-			type: 'get',
+			type: 'HEAD',
 			xhrFields: {
 				withCredentials: true
 			},
@@ -319,7 +337,7 @@ var CrossCloudClient = function () {
 					},
 					// TODO: status code behavior
 					success: function (d, s, r) {
-						
+
 						var complete = false;
 
 						$.ajax({
@@ -367,6 +385,11 @@ var CrossCloudClient = function () {
 		}
 	}
 
+	var firstLetterUpperCase = function(str) {
+		var start = str.slice(0, 1);
+		var end = str.slice(1);
+		return start.toUpperCase() + end.toLowerCase();
+	}
 	// get the base name of a path (e.g. filename)
 	// basename('/root/dir1/file') -> 'file'
 	var basename = function(path) {
@@ -415,4 +438,42 @@ var CrossCloudClient = function () {
 
 	Object.freeze(self);
 	return self;
+}
+
+/*
+	@params: modes - list of 
+*/
+var ACLMode = function(mode) {
+
+}
+
+var ACL = function (mode, group) {
+	var self = createObject(CrossCloudClient.prototype);
+	var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+	var WAC = $rdf.Namespace("http://www.w3.org/ns/auth/acl#");
+    var FOAF = $rdf.Namespace("http://xmlns.com/foaf/0.1/");
+
+	var aclMode;
+	var aclGroup;
+
+	self.setMode = function (mode) {
+		if (mode.toLowerCase() === 'read') {
+			aclMode = WAC('Read');
+			return true;
+		} else if (mode.toLowerCase() === 'write') {
+			aclMode = WAC('Write');
+			return true;
+		} else {
+			aclMode = undefined;
+			return false;
+		}
+	}
+
+	self.setGroup = function (group) {
+		if (group instanceof Array) {
+			if (isEmpty(group)) {
+
+			}
+		}
+	}
 }

@@ -97,9 +97,11 @@
 			    return value;
 			}
 
+			var metauri = "https://henchill.rww.io/storage/myfirstblog/ch1/";
+
 			$.ajax({
-				url: containerUri,
-				type: 'delete',
+				url: metauri,
+				type: 'head',
 				xhrFields: {
 					withCredentials: true
 				},
@@ -127,46 +129,49 @@
 			var LDPX = $rdf.Namespace("http://ns.rww.io/ldpx#");
 			
 			
-			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch47/";
+			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch46/";
 
-			var posturi = "https://henchill.rww.io/storage/myfirstblog/ch55/resource_1";
+			var posturi = "https://henchill.rww.io/storage/myfirstblog/ch46/post1";
 
 			// client.setAcl(posturi);
 			// client.deleteResource(posturi, function() {
 			// 	console.log("delete was successful");
 			// });
 			
-			client.deleteContainer(containerUri, function() {
-				console.log("container delete successful");
-			});
+			// client.deleteContainer(containerUri, function() {
+			// 	console.log("container delete successful");
+			// });
 			
 
 
-			// client.getUserCard("https://henchill.rww.io/profile/card#me", UserAccount(), function(results) {
-			// 		var u = results[0];
-			// 		var user = User();
-			// 		user.properties.webid.value = u.webid;
-			// 		for (var val in u.properties) {
-			// 			if (user.properties[val]) {
-			// 				user.properties[val].value = u.properties[val].value;
-			// 			}
-			// 		}
-			// 		var channel = Channel({'title': 'JSClientTitle', 'owner': user});
-			// 		var post = Post({'body': 'client body for post', 'owner': user});
+			client.getUserCard("https://ft4.rww.io/profile/card#me", UserAccount(), function(results) {
+					var u = results[0];
+					var user = User();
+					user.properties.webid.value = u.webid;
+					for (var val in u.properties) {
+						if (user.properties[val]) {
+							user.properties[val].value = u.properties[val].value;
+						}
+					}
+					var channel = Channel({'title': 'JSClientTitle', 'owner': user});
+					var post = Post({'body': 'client body for post', 'owner': user});
 					
-			// 		// client.writeContainer(space, channel, function(params) {
-			// 		// 	console.log(params);
-			// 		// 	client.setAcl(params.containerUri);
-			// 		// 	client.writeResource(params.containerUri, post, function(results) {
-			// 		// 		console.log(results);
-			// 		// 	});
-			// 		// });
+					// client.writeContainer(space, channel, function(params) {
+					// 	console.log(params);
+					// 	client.setAcl(params.containerUri, user.properties.webid.value);
+					// 	// client.writeResource(params.containerUri, post, function(results) {
+					// 	// 	console.log(results);
+					// 	// });
+					// });
 
-			// 		client.writeResource(containerUri, post, function(results) {
-			// 			client.setAcl(results.resourceUri);
-			// 			console.log(results);
-			// 		});
-			// });
+					client.writeResource(containerUri, post, function(results) {
+						client.setAcl(results.resourceUri, user.properties.webid.value, ['read']);
+						console.log(results);
+					});
+					// client.setAcl(containerUri, user.properties.webid.value);
+					// client.setAcl(containerUri, user.properties.webid.value, ['rEAd', 'wriTE']);
+					// client.setAcl(posturi, user.properties.webid.value, ['rEAd', 'wriTE']);
+			});
 				
 			
 
