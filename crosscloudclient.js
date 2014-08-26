@@ -25,7 +25,7 @@ var createObject = function (o) {
 * 
 * Notes about the callback function: The first parameter of the callback function
 * is a boolean noting whether the process was successful or not, and the second 
-* parameter is an object -->
+* parameter is either the result or an error object -->
 *	{errorType: "type of error that occured",
 *	 message: "error message"}
 * 
@@ -81,7 +81,9 @@ var CrossCloudClient = function (proxy, timeout) {
 	}
 
 	/**
-	* Retrieves all containers located at the given uri that fit the type of shape provided
+	* Retrieves all containers located in a given space. The space is denoted by the uri.
+	* If there are multiple workspaces within the given uri then the function fetches for
+	* containers in all of those.
 	* 
 	* @params {String} uri The URI of the container
 	* @params {Object} shape Object describing the properties the container should have
@@ -131,39 +133,59 @@ var CrossCloudClient = function (proxy, timeout) {
 		});
 	}
 
-
+	/**
+	* Retrieves the resources at the given uri whose rdf type is the same vocab as that of
+	* shape provided. This ignores all other items in that location.
+	*
+	* @params {String} uri The uri of the container in which you want to retrieve data from
+	* @params {Object} shape The properties of the resource you are hoping to retrieve
+	* @params {Function} callback The function to execute when the fetch is complete
+	* @returns {Array[shape]} Returns list of objects of type shape. 
+	*/ 
 	self.getResource = function (uri, shape, callback) {
 		f.nowOrWhenFetched(uri+"*", undefined, function(ok, body) {
-			var results = [];
-			var items = g.statementsMatching(undefined, RDF("type"), shape.vocab);
-			for (var i in items) {
-				var currentItem = items[i]['subject'];
-				var resource = jQuery.extend(true, {}, shape);
-				resource.uri = currentItem.uri;
-				resource.containerUri = uri
-				for (var p in shape.properties) {
-					var attr = shape.properties[p];
-					if (attr.value instanceof Object) {
-						var tmp = g.any(currentItem, attr.vocab);
-						var subObj = jQuery.extend(true, {}, attr.value);
-						resource.properties[p].value = subObj;
-						for (var s in attr.value.properties) {
-							var attr2 = attr.value.properties[s];
-							var tmp2 = g.any(tmp, attr2.vocab);
-							if (tmp2) subObj.properties[s].value = tmp2.value;
+			if (ok) {
+				var results = [];
+				var items = g.statementsMatching(undefined, RDF("type"), shape.vocab);
+				for (var i in items) {
+					var currentItem = items[i]['subject'];
+					var resource = jQuery.extend(true, {}, shape);
+					resource.uri = currentItem.uri;
+					resource.containerUri = uri
+					for (var p in shape.properties) {
+						var attr = shape.properties[p];
+						if (attr.value instanceof Object) {
+							var tmp = g.any(currentItem, attr.vocab);
+							var subObj = jQuery.extend(true, {}, attr.value);
+							resource.properties[p].value = subObj;
+							for (var s in attr.value.properties) {
+								var attr2 = attr.value.properties[s];
+								var tmp2 = g.any(tmp, attr2.vocab);
+								if (tmp2) subObj.properties[s].value = tmp2.value;
+							}
+						} else {
+							var tmp = g.any(currentItem, attr.vocab);
+							if (tmp) resource.properties[p].value = tmp.value;
 						}
-					} else {
-						var tmp = g.any(currentItem, attr.vocab);
-						if (tmp) resource.properties[p].value = tmp.value;
 					}
+					results.push(resource);
 				}
-				results.push(resource);
+				callback(true, results);
+			} else {
+				callback(false, body);
 			}
-			callback(results);
 		});
 	}
 
-	self.writeResource = function (container, shape, onSuccess) {
+	/**
+	* Write the properties of shape to the container as linked data. 
+	* 
+	* @params {String} container The uri of the container you would like to write to.
+	* @params {Object} shape An object describing the properties of the resource
+	* @params {Function} callback Function to execute when write is complete.
+	* @returns {Object} Returns object containing the uri of the resource you just created.
+	*/
+	self.writeResource = function (container, shape, callback) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 		var g = $rdf.graph();
 
@@ -180,15 +202,27 @@ var CrossCloudClient = function (proxy, timeout) {
 			xhrFields: {
 				withCredentials: true
 			},
-			// status code stuff
+			statusCode: genericStatusCode(callback, "Error writing post to container"),
 			success: function(d, s, r) {
 				var resourceUri = r.getResponseHeader('Location');
-				onSuccess({'resourceUri': resourceUri});
+				// consider returning the shape with the uri added. 
+				callback(true, {'resourceUri': resourceUri});
 			}
 		});
 	}
 
-	self.writeContainer = function (space, shape, onSuccess) {
+	/**
+	* Write a container to the user pod with the properties in shape. Does a post
+	* request on the space to optain a link header for the container that it is 
+	* trying to write, then it writes to the metaURI of the container. 
+	*
+	* @params {String} space The uri of the directory/workspace to write to
+	* @params {Object} shape Description of the properties to write.
+	* @params {Function} callback Function to execute after write is complete.
+	* @returns {Object} Returns an object that holds the acl uri, meta uri, and
+	*                   uri of the container that was just written to the pod.
+	*/
+	self.writeContainer = function (space, shape, callback) {
 		$.ajax({
 			type: "POST", 
 			url: space,
@@ -200,7 +234,7 @@ var CrossCloudClient = function (proxy, timeout) {
 			xhrFields: {
 				withCredentials: true
 			}, 
-			// TODO: include status code behavior
+			statusCode: genericStatusCode(callback, "Error fetching obtaining URI for container"),
 			success: function(d, s, r) {
 				meta = parseLinkHeader(r.getResponseHeader('Link'));
 				metaUri = meta['meta']['href'];
@@ -228,25 +262,35 @@ var CrossCloudClient = function (proxy, timeout) {
 						xhrFields: {
 							withCredentials: true
 						},
-						// include status code behavior
-						success: onSuccess({'metaUri': metaUri, 
-											'aclUri': aclUri,
-											'containerUri': containerUri})
+						statusCode: genericStatusCode(callback, "Error writing to metaURI"),
+						success: function (d, s, r) {
+							callback(true, {'metaUri': metaUri, 
+										'aclUri': aclUri,
+										'containerUri': containerUri});
+						}
 					});
 				}
 			}
 		});
 	}
 
-	// currently only sets public and private access. 
-	// server doesn't accept agentClass groups. 
-	// How should we set the acl for the acl file itself.
-	self.setAcl = function (uri, owner, modes, group) {
+	/**
+	* Set the acl for the given uri.
+	* Modes include: ['Read', 'Write', 'Append']
+	*
+	* @params {String} uri The item you would like to set an acl for
+	* @params {String} owner The uri of the owner of the item being written
+	* @params {Array<String>} modes An array of strings denoting the type of access
+	* @params {Array<String>} group List of webids that you would like to apply 
+	*                         the list of modes to.
+	* @params {Function} callback Function to execute upon completion
+	*/
+	self.setAcl = function (uri, owner, modes, group, callback) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 		var WAC = $rdf.Namespace("http://www.w3.org/ns/auth/acl#");
         var FOAF = $rdf.Namespace("http://xmlns.com/foaf/0.1/");
-        var g = $rdf.graph();
-        var s = new $rdf.Serializer(g).toN3(g);
+        // var g = $rdf.graph();
+        // var s = new $rdf.Serializer(g).toN3(g);
 
         $.ajax({
 			type: 'HEAD',
@@ -261,7 +305,6 @@ var CrossCloudClient = function (proxy, timeout) {
 
 				var frag = "#" + basename(uri);
 
-                var webid = "https://henchill.rww.io/profile/card#me";
                 var g = $rdf.graph();
 
                 // default is read write for owner
@@ -300,7 +343,7 @@ var CrossCloudClient = function (proxy, timeout) {
 
                 if (s && aclUri) {
                 	$.ajax({
-                		type: 'PUT',
+                		type: 'PUT', // consider using patch
                 		url: aclUri,
                 		contentType: 'text/turtle',
                 		data: s,
@@ -308,13 +351,22 @@ var CrossCloudClient = function (proxy, timeout) {
                 		xhrFields: {
                 			withCredentials: true
                 		},
-                		// include status code
+                		statusCode: genericStatusCode(callback, "Error writing ACL"),
+                		success: function(d, s, r) {
+                			callback(true);
+                		}
                 	});
                 }
 			}
 		});
 	}
 
+	/**
+	* Remove the resource at the given uri. Removes the resource and its ACL
+	* 
+	* @params {String} uri The URI of the resource.
+	* @params {Function} callback Function to execute when delete completes.
+	*/
 	self.deleteResource = function(uri, callback) {
 		$.ajax({
 			url: uri,
@@ -322,6 +374,7 @@ var CrossCloudClient = function (proxy, timeout) {
 			xhrFields: {
 				withCredentials: true
 			},
+			statusCode: genericStatusCode(callback, "Failed to delete resource"),
 			success: function (d, s, r) {
 				var acl = parseLinkHeader(r.getResponseHeader('Link'));
 				var aclUri = acl['acl']['href'];
@@ -332,14 +385,23 @@ var CrossCloudClient = function (proxy, timeout) {
 					xhrFields: {
 						withCredentials: true
 					},
+					statusCode: genericStatusCode(callback, "Failed to delete ACL for resource"),
 					success: function (d, s, r) {
-						callback();
+						callback(true);
 					}
 				})
 			}
-		})
+		});
 	}
 
+	/**
+	* Removes all RESOURCES within a container, the container itself, the ACL for 
+	* the container, and the meta for the container. Note a container cannot be 
+	* deleted unless it's empty, and this function does not support recursive deletion
+	*
+	* @params {String} uri The URI of the container you would like to delete
+	* @params {Function} callback The function to execute when delete completes
+	*/
 	self.deleteContainer = function(uri, callback) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
         var rdfschema = $rdf.Namespace("http://www.w3.org/2000/01/rdf-schema#");
@@ -359,6 +421,7 @@ var CrossCloudClient = function (proxy, timeout) {
         				xhrFields: {
         					withCredentials: true
         				},
+        				statusCode: genericStatusCode(callback, "Failed to delete a resource in the container"),
         				success: function (d, s, r) {
         					length -= 1;
         					if (length === 0) {
@@ -373,6 +436,13 @@ var CrossCloudClient = function (proxy, timeout) {
         });
 	}
 
+	/**
+	* Helper function to delete a container after all of the resources in it have
+	* been deleted. 
+	*
+	* @params {String} uri The URI of the container being deleted
+	* @params {Function} callback Function to execute when delete is complete
+	*/
 	var deleteEmptyContainer = function (uri, callback) {
 		$.ajax({
 			url: uri,
@@ -380,6 +450,7 @@ var CrossCloudClient = function (proxy, timeout) {
 			xhrFields: {
 				withCredentials: true
 			},
+			statusCode: genericStatusCode(callback, "Failed to fetch information about the container."),
 			success: function (d, s, r) {
 				var meta = parseLinkHeader(r.getResponseHeader('Link'));
 				var aclUri = meta['acl']['href'];
@@ -392,7 +463,7 @@ var CrossCloudClient = function (proxy, timeout) {
 					xhrFields: {
 						withCredentials: true
 					},
-					// TODO: status code behavior
+					statusCode: genericStatusCode(callback, "Failed to delete the container"),
 					success: function (d, s, r) {
 
 						var complete = false;
@@ -403,6 +474,7 @@ var CrossCloudClient = function (proxy, timeout) {
 							xhrFields: {
 								withCredentials: true
 							},
+							statusCode: genericStatusCode(callback, "Failed to delete the ACL for the container"),
 							success: function(d, s, r) {
 		        				complete ? callback(): complete = !complete;
 							}
@@ -414,6 +486,7 @@ var CrossCloudClient = function (proxy, timeout) {
 							xhrFields: {
 								withCredentials: true
 							},
+							statusCode: genericStatusCode(callback, "Failed to delete the meta file the container"),
 							success: function(d, s, r) {
 		        				complete ? callback(): complete = !complete;
 							}
@@ -424,6 +497,52 @@ var CrossCloudClient = function (proxy, timeout) {
 		});
 	}
 
+	/**
+	* Helper function to provide a generic response to different status codes
+	* that may arise during AJAX calls. 
+	* 
+	* @params {Function} callback Function to execute
+	* @params {String} message More information about where the operation failed.
+	*/
+	var genericStatusCode = function (callback, message) {
+		// should add more codes.
+		return {
+			401: function(data) {
+				callback(false, {
+					'errorType': 404,
+					'message': '401 Unauthorized. ' + message
+				});
+			},
+			403: function(data) {
+				callback(false, {
+					'errorType': 403, 
+					'message': '403 Forbidden. ' + message
+				});
+			},
+			406: function(data) {
+				callback(false, {
+					'errorType': 406,
+					'message': '406 Content-type unacceptable. ' + message
+				});
+			},
+			507: function() {
+				callback(false, {
+					'errorType': 507,
+					'message': '507 Insufficient storage. ' + message
+				});
+			}
+		}
+	}
+
+	/**
+	* Helper function to recursively add a shape and any sub-shapes that it contains
+	* to the graph. 
+	* 
+	* @params {Object} g An RDF graph to add to
+	* @params {String} reference A string to mark the subject of triples for 
+	*                  the sub-shape
+	* @params {Object} shape The description of properties to convert to triples
+	*/
 	var recursiveAddToGraph = function(g, reference, shape) {
 		var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 		g.add($rdf.sym(reference), RDF('type'), shape.vocab);
@@ -442,13 +561,25 @@ var CrossCloudClient = function (proxy, timeout) {
 		}
 	}
 
+	/** 
+	* Helper function to convert a string into a string where only the first letter
+	* is capitalized.
+	* 
+	* @params {String} str The string we would like to convert. 
+	*/
 	var firstLetterUpperCase = function(str) {
 		var start = str.slice(0, 1);
 		var end = str.slice(1);
 		return start.toUpperCase() + end.toLowerCase();
 	}
-	// get the base name of a path (e.g. filename)
-	// basename('/root/dir1/file') -> 'file'
+
+	/**
+	* Get the base name of a path (e.g. filename).
+	* basename('/root/dir1/file') -> 'file'
+	*
+	* @params {String} path That path to the file or resource.
+	* @returns {String} Returns the basename from the path
+	*/
 	var basename = function(path) {
 	    if (path.substring(path.length - 1) == '/') {
 	        path = path.substring(0, path.length - 1);
@@ -458,7 +589,13 @@ var CrossCloudClient = function (proxy, timeout) {
 	    return a[a.length - 1];
 	};
 
-	// parse a Link header
+	/**
+	* Parse a Link header to create an object that is more manageable.
+	*
+	* @params {String} header The link header optained from an ajax call
+	* @returns {Object} Returns an object that maps each property in the link 
+	*                   header to a value.
+	*/
 	var parseLinkHeader = function(header) {	
 		var linkexp = /<[^>]*>\s*(\s*;\s*[^\(\)<>@,;:"\/\[\]\?={} \t]+=(([^\(\)<>@,;:"\/\[\]\?={} \t]+)|("[^"]*")))*(,|$)/g;
 		var paramexp = /[^\(\)<>@,;:"\/\[\]\?={} \t]+=(([^\(\)<>@,;:"\/\[\]\?={} \t]+)|("[^"]*"))/g;
@@ -486,6 +623,13 @@ var CrossCloudClient = function (proxy, timeout) {
 	    return rels;
 	}
 
+	/**
+	* Removes the quotation marks at the beginning and end of a string.
+	*
+	* @params {String} value The input string
+	* @return {String} Returns the input string without quotation marks at 
+	*                  the beginning or end
+	*/
 	var unquote = function(value) {
 	    if (value.charAt(0) == '"' && value.charAt(value.length - 1) == '"') {
 			return value.substring(1, value.length - 1);
@@ -493,6 +637,6 @@ var CrossCloudClient = function (proxy, timeout) {
 	    return value;
 	}
 
-	Object.freeze(self);
+	Object.freeze(self); // ensures no properties are added or modified
 	return self;
 }
