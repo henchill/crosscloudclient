@@ -91,6 +91,8 @@ var CrossCloudClient = function (proxy, timeout) {
 	* @return {Array[shape]} Returns a list of containers found
 	*/
 	self.getContainers = function (uri, shape, callback) {
+		var g = $rdf.graph();
+    	var f = $rdf.fetcher(g, timeout);
 		f.nowOrWhenFetched(uri, undefined, function (ok, body) {
 			if (ok) {
 				var workspaces = g.statementsMatching(undefined, RDF('type'), SIOC('Space'));
@@ -143,6 +145,8 @@ var CrossCloudClient = function (proxy, timeout) {
 	* @returns {Array[shape]} Returns list of objects of type shape. 
 	*/ 
 	self.getResource = function (uri, shape, callback) {
+		var g = $rdf.graph();
+    	var f = $rdf.fetcher(g, timeout);
 		f.nowOrWhenFetched(uri+"*", undefined, function(ok, body) {
 			if (ok) {
 				var results = [];
@@ -151,7 +155,7 @@ var CrossCloudClient = function (proxy, timeout) {
 					var currentItem = items[i]['subject'];
 					var resource = jQuery.extend(true, {}, shape);
 					resource.uri = currentItem.uri;
-					resource.containerUri = uri
+					// resource.containerUri = uri
 					for (var p in shape.properties) {
 						var attr = shape.properties[p];
 						if (attr.value instanceof Object) {
@@ -223,6 +227,7 @@ var CrossCloudClient = function (proxy, timeout) {
 	*                   uri of the container that was just written to the pod.
 	*/
 	self.writeContainer = function (space, shape, callback) {
+		
 		$.ajax({
 			type: "POST", 
 			url: space,
@@ -243,10 +248,11 @@ var CrossCloudClient = function (proxy, timeout) {
 
 				var RDF = $rdf.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 				var SIOC = $rdf.Namespace("http://rdfs.org/sioc/ns#");
+				var LDPX = $rdf.Namespace("http://ns.rww.io/ldpx#");
 
 				var g = $rdf.graph();
 				if (shape.prefix) {
-					g.add($rdf.sym(containerUri), shape.prefix.vocab, shape.prefix.value);
+					g.add($rdf.sym(containerUri), LDPX('ldprPrefix'), $rdf.lit(shape.prefix));
 				}
 				recursiveAddToGraph(g, containerUri, shape);
 
@@ -640,3 +646,24 @@ var CrossCloudClient = function (proxy, timeout) {
 	Object.freeze(self); // ensures no properties are added or modified
 	return self;
 }
+
+/**
+var UserObject = function(webid, properties) {
+	var self = createObject(UserObject.prototype);
+
+	self.webid = webid;
+
+	self.properties = properties ? properties : {};
+
+	self.addPro
+}
+
+var ContainerObject = function(uri, properties) {
+	
+}
+
+var ResourceObject = function(uri, containerUri, properties) {
+	
+}
+
+*/

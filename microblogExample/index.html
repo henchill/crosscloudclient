@@ -1,0 +1,33 @@
+<html>
+	<head>
+		<title>Microblog Example</title>
+		<script type="text/javascript" src="../dep/rdflib.js"></script>
+		<script type="text/javascript" src="../dep/jquery.min.js"></script>
+		<script type="text/javascript" src="../crosscloudclient.js"></script>
+		<script type="text/javascript" src="shapefactory.js"></script>
+		<script type="text/javascript" src="mbExample.js"></script>
+	</head>	
+	<body>
+		<h1 align="center">CrossCloud Client Microblog Example</h1>
+		<p align="center">Please provide the necessary information (webid, uri, etc) in the box below before running each test. <br> Note that no acls are automatically set. <br> Can provide a post uri in the location of the channel uri input to set the acl for a post.</p>
+		<h2 align="center">Tests</h2>
+		<div align="center">
+		<form>
+			Webid: <input id="webid" type='text' name='webid'><br>
+			Space: <input id="space" type='text' name="space"><br>
+			Channel URI: <input id="churi" type='text' name="churi">
+		</form>
+		<div>
+			<button id="fUser" title="Fetch infomation about the user at the above webid">Fetch User</button>
+			<button id="nc" title="Create a new channel in the space above">New Channel</button>
+			<button id="np" title="Create a new post in the channel uri above">New Post</button>
+			<button id="fCont" title="Fetch all channels in the space above">Fetch Channels</button>
+			<button id="fPost" title="Fetch all posts from the channel uri above">Fetch Post</button>
+			<button id="acl" title="Give webid above read/write access to the channeluri above">Set Acl</button>
+		</div>
+	</div>
+		<br><br>
+		<h2 align="center">Output</h2>
+		<div id='output' align="center"></div>
+	</body>
+</html>

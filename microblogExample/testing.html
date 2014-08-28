@@ -1,0 +1,190 @@
+<html>
+	<head>
+		<title>Testing JSClient for Crosscloud</title>
+		<script type="text/javascript" src="../dep/rdflib.js"></script>
+		<script type="text/javascript" src="../dep/jquery.min.js"></script>
+		<script type="text/javascript" src="shapefactory.js"></script>
+		<script type="text/javascript" src="../crosscloudclient.js"></script>
+	</head>	
+	<body>
+		<h1 align="center">Testing JSClient for Crosscloud</h1>
+		<!--<script>
+			var client = CrossCloudClient();
+			var webid = "https://henchill.rww.io/profile/card#me"
+
+			var callback = function(obj) {
+				var user = obj[0];
+				console.log(user);
+				var storage = user.properties.storage;
+				var channel = Channel();
+				// channel.properties.owner.value = User();
+				console.log(channel);
+				client.getContainers(storage, channel, function(results) {
+					for (var i in results) {
+						console.log(results[i]);
+					}
+					var chUri = results[1].uri;
+					console.log(chUri);
+					client.getResource(chUri, Post(), function(results) {
+						for (var j in results) {
+							console.log(results[j]);
+						}
+					});
+				});
+			};
+
+			client.getUserCard(webid, User(), callback);
+		</script>
+		<script>
+			// var client = CrossCloudClient();
+			// var uri = "https://henchill.rww.io/storage/"
+			// var callback = function (obj) {
+			// 	for (var i in obj) {
+			// 		console.log(obj[i]);
+			// 	}
+			// };
+			// // console.log(Channel());
+			// client.getContainers(uri, Channel(), callback);
+		</script>
+		<script>
+			// var uri = "https://henchill.rww.io/storage/myfirstblog/ch12/";
+			// var client = CrossCloudClient();
+			// var callback = function (obj) {
+			// 	// console.log(obj);
+			// 	for (var i in obj) {
+			// 		console.log(obj[i]);
+			// 	}
+			// };
+
+			// client.getResource(uri, Post(), callback);
+		</script>-->
+		<!--<script>
+
+			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch50/";
+
+				// parse a Link header
+			var parseLinkHeader = function(header) {	
+				var linkexp = /<[^>]*>\s*(\s*;\s*[^\(\)<>@,;:"\/\[\]\?={} \t]+=(([^\(\)<>@,;:"\/\[\]\?={} \t]+)|("[^"]*")))*(,|$)/g;
+				var paramexp = /[^\(\)<>@,;:"\/\[\]\?={} \t]+=(([^\(\)<>@,;:"\/\[\]\?={} \t]+)|("[^"]*"))/g;
+
+				var matches = header.match(linkexp);
+				var rels = {};
+				for (i = 0; i < matches.length; i++) {
+					var split = matches[i].split('>');
+					var href = split[0].substring(1);
+					var ps = split[1];
+					var link = {};
+					link.href = href;
+					var s = ps.match(paramexp);
+					for (j = 0; j < s.length; j++) {
+						var p = s[j];
+						var paramsplit = p.split('=');
+						var name = paramsplit[0];
+						link[name] = unquote(paramsplit[1]);
+					}
+
+					if (link.rel !== undefined) {
+						rels[link.rel] = link;
+					}
+				}
+			    return rels;
+			}
+
+			var unquote = function(value) {
+			    if (value.charAt(0) == '"' && value.charAt(value.length - 1) == '"') {
+					return value.substring(1, value.length - 1);
+			    }
+			    return value;
+			}
+
+			var metauri = "https://henchill.rww.io/storage/myfirstblog/ch1/";
+
+			$.ajax({
+				url: metauri,
+				type: 'head',
+				xhrFields: {
+					withCredentials: true
+				},
+				success: function(d, s, r) {
+					var meta = parseLinkHeader(r.getResponseHeader('Link'));
+					console.log(meta);
+					// var aclUri = meta['acl']['href'];
+					// var metaUri = meta['meta']['href'];
+
+					// console.log(aclUri);
+					// console.log(metaUri);
+					console.log(r.getResponseHeader('Link'));
+					console.log(r.getAllResponseHeaders());
+				},
+				error: function(d, s, r) {
+					console.log(d);
+					console.log(s);
+					console.log(r);
+				}
+			});
+		</script>-->
+		<script>
+			var client = CrossCloudClient();
+			var space = 'https://henchill.rww.io/storage/myfirstblog/';
+			var LDPX = $rdf.Namespace("http://ns.rww.io/ldpx#");
+			
+			
+			var containerUri = "https://henchill.rww.io/storage/myfirstblog/ch46/";
+
+			var posturi = "https://henchill.rww.io/storage/myfirstblog/ch46/post1";
+
+			// client.setAcl(posturi);
+			// client.deleteResource(posturi, function() {
+			// 	console.log("delete was successful");
+			// });
+			
+			// client.deleteContainer(containerUri, function() {
+			// 	console.log("container delete successful");
+			// });
+			
+
+
+			client.getUserCard("https://ft4.rww.io/profile/card#me", UserAccount(), function(status, results) {
+					var u = results[0];
+					var user = User();
+					user.properties.webid.value = u.webid;
+					for (var val in u.properties) {
+						if (user.properties[val]) {
+							user.properties[val].value = u.properties[val].value;
+						}
+					}
+					var channel = Channel({'title': 'JSClientTitle', 'owner': user});
+					var post = Post({'body': 'client body for post', 'owner': user});
+					
+					client.writeContainer(space, channel, function(params) {
+						console.log(params);
+						client.setAcl(params.containerUri, user.properties.webid.value);
+						// client.writeResource(params.containerUri, post, function(results) {
+						// 	console.log(results);
+						// });
+					});
+
+					// client.writeResource(containerUri, post, function(results) {
+					// 	client.setAcl(results.resourceUri, user.properties.webid.value, ['read']);
+					// 	console.log(results);
+					// });
+					// client.setAcl(containerUri, user.properties.webid.value);
+					// client.setAcl(containerUri, user.properties.webid.value, ['rEAd', 'wriTE']);
+					// client.setAcl(posturi, user.properties.webid.value, ['rEAd', 'wriTE']);
+			});
+				
+			
+
+			// console.log(channel);
+			// client.writeContainer(channel, space, function (params) {
+			// 	console.log(params);
+			// 	client.setAcl(params.containerUri);
+			// 	var user;
+
+
+				
+			// });
+		</script>
+
+	</body>
+</html>
